@@ -1,0 +1,7 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =5
+let g:netrw_dirhist_1='/root/go-project/src/github.com/node_exporter'
+let g:netrw_dirhist_2='/root/go-project/src/github.com/node_exporter/keeper'
+let g:netrw_dirhist_3='/root/go-project/src/github.com/node_exporter'
+let g:netrw_dirhist_4='/root/go-project/src/github.com/node_exporter/keeper'
+let g:netrw_dirhist_5='/root/go-project/src/github.com/node_exporter'
