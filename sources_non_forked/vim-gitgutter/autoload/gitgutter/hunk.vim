@@ -64,7 +64,7 @@ function! gitgutter#hunk#next_hunk(count) abort
         if g:gitgutter_show_msg_on_hunk_jumping
           redraw | echo printf('Hunk %d of %d', index(hunks, hunk) + 1, len(hunks))
         endif
-        if s:is_preview_window_open()
+        if gitgutter#hunk#is_preview_window_open()
           call gitgutter#hunk#preview()
         endif
         return
@@ -95,7 +95,7 @@ function! gitgutter#hunk#prev_hunk(count) abort
         if g:gitgutter_show_msg_on_hunk_jumping
           redraw | echo printf('Hunk %d of %d', index(hunks, hunk) + 1, len(hunks))
         endif
-        if s:is_preview_window_open()
+        if gitgutter#hunk#is_preview_window_open()
           call gitgutter#hunk#preview()
         endif
         return
@@ -249,7 +249,7 @@ function! s:hunk_op(op, ...)
       let hunk_diff = join(hunk_header + hunk_body, "\n")."\n"
 
       call s:goto_original_window()
-      call s:close_hunk_preview_window()
+      call gitgutter#hunk#close_hunk_preview_window()
       call s:stage(hunk_diff)
     endif
 
@@ -382,12 +382,6 @@ function! s:fix_file_references(filepath, hunk_diff)
   return join(lines, "\n")."\n"
 endfunction
 
-if $VIM_GITGUTTER_TEST
-  function! gitgutter#hunk#fix_file_references(filepath, hunk_diff)
-    return s:fix_file_references(a:filepath, a:hunk_diff)
-  endfunction
-endif
-
 
 function! s:adjust_hunk_summary(hunk_diff) abort
   let line_adjustment = s:line_adjustment_for_current_hunk()
@@ -427,18 +421,11 @@ endfunction
 function! s:open_hunk_preview_window()
   if g:gitgutter_preview_win_floating
     if exists('*nvim_open_win')
-      call s:close_hunk_preview_window()
+      call gitgutter#hunk#close_hunk_preview_window()
 
       let buf = nvim_create_buf(v:false, v:false)
       " Set default width and height for now.
-      let s:winid = nvim_open_win(buf, v:false, {
-            \ 'relative': 'cursor',
-            \ 'row': 1,
-            \ 'col': 0,
-            \ 'width': 42,
-            \ 'height': &previewheight,
-            \ 'style': 'minimal'
-            \ })
+      let s:winid = nvim_open_win(buf, v:false, g:gitgutter_floating_window_options)
       call nvim_buf_set_option(buf, 'filetype',  'diff')
       call nvim_buf_set_option(buf, 'buftype',   'acwrite')
       call nvim_buf_set_option(buf, 'bufhidden', 'delete')
@@ -446,30 +433,35 @@ function! s:open_hunk_preview_window()
       call nvim_buf_set_name(buf, 'gitgutter://hunk-preview')
 
       " Assumes cursor is in original window.
-      autocmd CursorMoved <buffer> ++once call s:close_hunk_preview_window()
+      autocmd CursorMoved <buffer> ++once call gitgutter#hunk#close_hunk_preview_window()
+
       if g:gitgutter_close_preview_on_escape
-        nnoremap <buffer> <silent> <Esc> :call <SID>close_hunk_preview_window()<CR>
+        " Map <Esc> to close the floating preview.
+        nnoremap <buffer> <silent> <Esc> :<C-U>call gitgutter#hunk#close_hunk_preview_window()<CR>
+        " Ensure that when the preview window is closed, the map is removed.
+        autocmd User GitGutterPreviewClosed silent! nunmap <buffer> <Esc>
+        autocmd CursorMoved <buffer> ++once silent! nunmap <buffer> <Esc>
+        execute "autocmd WinClosed <buffer=".winbufnr(s:winid)."> doautocmd" s:nomodeline "User GitGutterPreviewClosed"
       endif
 
       return
     endif
 
     if exists('*popup_create')
-      let opts = {
-            \ 'line': 'cursor+1',
-            \ 'col': 'cursor',
-            \ 'moved': 'any',
-            \ }
       if g:gitgutter_close_preview_on_escape
-        let opts.filter = function('s:close_popup_on_escape')
+        let g:gitgutter_floating_window_options.filter = function('s:close_popup_on_escape')
       endif
 
-      let s:winid = popup_create('', opts)
+      let s:winid = popup_create('', g:gitgutter_floating_window_options)
 
       call setbufvar(winbufnr(s:winid), '&filetype', 'diff')
 
       return
     endif
+  endif
+
+  if exists('&previewpopup')
+    let [previewpopup, &previewpopup] = [&previewpopup, '']
   endif
 
   " Specifying where to open the preview window can lead to the cursor going
@@ -490,6 +482,10 @@ function! s:open_hunk_preview_window()
     " Ensure cursor goes to the expected window.
     nnoremap <buffer> <silent> <Esc> :<C-U>wincmd p<Bar>pclose<CR>
   endif
+
+  if exists('&previewpopup')
+    let &previewpopup=previewpopup
+  endif
 endfunction
 
 
@@ -509,7 +505,7 @@ function! s:populate_hunk_preview_window(header, body)
 
   if g:gitgutter_preview_win_floating
     if exists('*nvim_open_win')
-      let height = min([body_length, &previewheight])
+      let height = min([body_length, g:gitgutter_floating_window_options.height])
 
       " Assumes cursor is not in previewing window.
       call nvim_buf_set_var(winbufnr(s:winid), 'hunk_header', a:header)
@@ -584,7 +580,7 @@ function! s:goto_original_window()
 endfunction
 
 
-function! s:close_hunk_preview_window()
+function! gitgutter#hunk#close_hunk_preview_window()
   let bufnr = s:winid != 0 ? winbufnr(s:winid) : s:preview_bufnr
   call setbufvar(bufnr, '&modified', 0)
 
@@ -601,12 +597,17 @@ function! s:close_hunk_preview_window()
 endfunction
 
 
-" Only makes sense for traditional, non-floating preview window.
-function s:is_preview_window_open()
-  for i in range(1, winnr('$'))
-    if getwinvar(i, '&previewwindow')
-      return 1
+function gitgutter#hunk#is_preview_window_open()
+  if g:gitgutter_preview_win_floating
+    if win_id2win(s:winid) > 0
+      execute win_id2win(s:winid).'wincmd c'
     endif
-  endfor
+  else
+    for i in range(1, winnr('$'))
+      if getwinvar(i, '&previewwindow')
+        return 1
+      endif
+    endfor
+  endif
   return 0
 endfunction

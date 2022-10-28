@@ -51,13 +51,13 @@
  filetype off
  ""针对不同的文件采用不同的缩进方式
  filetype plugin indent on
- 
- set tags=tags;/
-
 
 "==================================
 ""    Vim 插件配置
 "===================================
+" move among buffers with CTRL
+map <C-J> :bnext<CR>
+map <C-K> :bprev<CR>
 
 "NERDTree
 let NERDTreeWinPos='right'
@@ -65,7 +65,17 @@ let NERDTreeWinSize=30
 map <F8> :NERDTreeToggle<CR>
 
 
-"TAGLIST WITH GO
+
+"===================================
+""tagbar
+"===================================
+let g:tagbar_left = 1
+let g:tagbar_width = 30
+let g:tagbar_autofocus = 1
+
+nnoremap <silent> <F2> :TagbarToggle<CR>
+
+"tagebar go
 let g:tagbar_type_go = {
 	\ 'ctagstype' : 'go',
 	\ 'kinds'     : [
@@ -95,34 +105,25 @@ let g:tagbar_type_go = {
 \ }
 
 
-" go language
-let s:tlist_def_go_settings = 'go;g:enum;s:struct;u:union;t:type;' .
-                           \ 'v:variable;f:function'
+
+"===================================
+""vim-go
+"===================================
+" Go related mappings
+au FileType go nmap <Leader>i <Plug>(go-info)
+au FileType go nmap <Leader>gd <Plug>(go-doc)
+au FileType go nmap <Leader>r <Plug>(go-run)
+au FileType go nmap <Leader>b <Plug>(go-build)
+au FileType go nmap <Leader>t <Plug>(go-test)
+au FileType go nmap gd <Plug>(go-def-tab)
+
+let g:go_auto_sameids = 1
+map <C-n> :GoCallers<CR>
 
 
-"TAGLIST
-let Tlist_Ctags_Cmd='ctags'
-let Tlist_Show_One_File=1               "不同时显示多个文件的tag，只显示当前文件的
-let Tlist_WinWidth =30                   "设置taglist的宽度
-let Tlist_Exit_OnlyWindow=1             "如果taglist窗口是最后一个窗口，则退出vim
-let Tlist_Use_Left_Window=1           "在右侧窗口中显示taglist窗口
-let Tlist_Auto_Open=1
-let Tlist_Auto_Update=1
-let Tlist_Sort_Type="name"
-let Tlist_Process_File_Always=1         "taglist始终解析文件中的tag，不管taglist是否打开
-
-nnoremap <silent> <F3> :Tlist<CR>
-
-
-"TAGBAR (golang)
-let g:tagbar_left = 1
-let g:tagbar_width = 30
-let g:tagbar_autofocus = 1
-
-nnoremap <silent> <F2> :TagbarToggle<CR>
-
-
-"AIRLINE
+"===================================
+""airline
+"===================================
 "let g:airline_theme="molokai"
 let g:airline#extensions#tabline#enabled = 1
 let g:airline#extensions#whitespace#enabled = 0    " 关闭状态显示空白符号计数
@@ -132,11 +133,9 @@ let g:airline_left_alt_sep = ''
 let g:airline_right_sep = ''
 let g:airline_right_alt_sep = ''
 
-" move among buffers with CTRL
-map <C-J> :bnext<CR>
-map <C-K> :bprev<CR>
-
-
+"===================================
+""neocomplete 
+"===================================
 " Disable AutoComplPop.
 let g:acp_enableAtStartup = 0
 " Use neocomplete.
@@ -163,16 +162,4 @@ inoremap <expr><C-h> neocomplete#smart_close_popup()."\<C-h>"
 inoremap <expr><BS> neocomplete#smart_close_popup()."\<C-h>"
 inoremap <expr><C-y>  neocomplete#close_popup()
 inoremap <expr><C-e>  neocomplete#cancel_popup()
- 
-" Go related mappings
-au FileType go nmap <Leader>i <Plug>(go-info)
-au FileType go nmap <Leader>gd <Plug>(go-doc)
-au FileType go nmap <Leader>r <Plug>(go-run)
-au FileType go nmap <Leader>b <Plug>(go-build)
-au FileType go nmap <Leader>t <Plug>(go-test)
-au FileType go nmap gd <Plug>(go-def-tab)
 
-"VIM-GO
-let g:go_auto_sameids = 1
-
-map <C-n> :GoCallers<CR>
